@@ -1,8 +1,6 @@
 use crate::dwcpn::modules::chl_profile::{gen_chl_profile};
-use crate::dwcpn::modules::config::{DEPTH_PROFILE_COUNT, DEPTH_PROFILE_STEP, TIMESTEPS, WL_ARRAY, WL_COUNT, DELTA_LAMBDA};
-use crate::dwcpn::modules::irradiance::{
-    compute_irradiance_components, lookup_thekaekara_correction,
-};
+use crate::dwcpn::modules::config::{DEPTH_PROFILE_COUNT, DEPTH_PROFILE_STEP, TIMESTEPS, WL_COUNT};
+use crate::dwcpn::modules::irradiance::{compute_irradiance_components, correct_and_recompute_irradiance_components, lookup_thekaekara_correction};
 use crate::dwcpn::modules::pp_profile::compute_pp_depth_profile;
 use crate::dwcpn::modules::time::{compute_sunrise, generate_time_array};
 use crate::dwcpn::modules::zenith::{generate_zenith_array, compute_zenith_time};
@@ -52,11 +50,6 @@ pub fn calc_pp(input: &ModelInputs, settings: &ModelSettings) -> (f64, f64, f64)
 
     let solar_correction = lookup_thekaekara_correction(input.iday);
 
-    let mut surface_irradiance: [f64; TIMESTEPS] = [0.0; TIMESTEPS];
-    let mut par_surface_irradiance: [f64; TIMESTEPS] = [0.0; TIMESTEPS];
-    let mut adjustment: [f64; TIMESTEPS] = [0.0; TIMESTEPS];
-    let mut i_z: [f64; TIMESTEPS] = [0.0; TIMESTEPS];
-
     // arrays to store results
     let mut pp: [f64; TIMESTEPS] = [0.0; TIMESTEPS];
     let mut euphotic_depth: [f64; TIMESTEPS] = [0.0; TIMESTEPS];
@@ -96,86 +89,27 @@ pub fn calc_pp(input: &ModelInputs, settings: &ModelSettings) -> (f64, f64, f64)
         }
 
         // compute direct and diffuse irradiance components at sea level
-        let (mut direct, mut diffuse) =
+        let (direct, diffuse) =
             compute_irradiance_components(zenith_array[t], zenith_d_array[t]);
 
-        let mut direct_integrated: f64 = 0.0;
-        let mut diffuse_integrated: f64 = 0.0;
-
-        for l in 0..WL_COUNT {
-            // apply fractional correction to diffuse and direct components of irradiance
-            // the max correction value is 1353.0, so this converts it to as though we were applying a percentage correction
-            direct[l] = direct[l] * &solar_correction / 1353.0;
-            diffuse[l] = diffuse[l] * &solar_correction / 1353.0;
-
-            // add this value to the integrated direct/diffuse components
-            direct_integrated = direct_integrated + (direct[l] * zenith_array[t].cos());
-            diffuse_integrated = diffuse_integrated + diffuse[l];
-        }
-
-        surface_irradiance[t] = surface_irradiance[t] + direct_integrated + diffuse_integrated;
-
-        // cloud effect calculations
-        let albedo = 0.28 / (1.0 + 6.43 * zenith_array[t].cos());
-        let cc = input.cloud / 100.0;
-        let idir1 = &direct_integrated * (1.0 - cc);
-        let flux = ((1.0 - 0.5 * cc) * (0.82 - albedo * (1.0 - cc)) * zenith_array[t].cos())
-            / ((0.82 - albedo) * zenith_array[t].cos());
-        let idif1 = surface_irradiance[t] * flux - idir1;
-        let dir_div = idir1 / &direct_integrated;
-        let dif_div = idif1 / &diffuse_integrated;
-
-        for l in 0..WL_COUNT {
-            direct[l] = direct[l] + dir_div;
-            diffuse[l] = diffuse[l] + dif_div;
-        }
-
-        // calculate reflection and convert watts/micron into einsteins/hr/nm
-        let zenith_w = (zenith_array[t].sin() / 1.333).asin();
-        let mut reflection = 0.5 * (zenith_array[t] - zenith_w).sin().powi(2)
-            / (zenith_array[t] + zenith_w).sin().powi(2);
-        reflection = reflection
-            + 0.5 * (zenith_array[t] - zenith_w).tan().powi(2)
-                / (zenith_array[t] + zenith_w).tan().powi(2);
-
-        // recompute surface irradiance across spectrum
-        surface_irradiance[t] = 0.0;
-
-        for l in 0..WL_COUNT {
-            let wl_coefficient = WL_ARRAY[l] * 36.0 / (19.87 * 6.022 * 10e6);
-            direct[l] = direct[l] * wl_coefficient * zenith_array[t].cos();
-            diffuse[l] = diffuse[l] * wl_coefficient;
-
-            surface_irradiance[t] = surface_irradiance[t] + direct[l] + diffuse[l];
-
-            direct[l] = direct[l] * (1.0 - reflection);
-            diffuse[l] = diffuse[l] * 0.945;
-        }
-
-        // compute surface irradiance from total daily surface irradiance (e.g. satellite par)
-        par_surface_irradiance[t] = iom * (PI * (time_array[t] - (sunrise)) / day_length).sin();
-        surface_irradiance[t] = surface_irradiance[t] * DELTA_LAMBDA;
-
-
-        // Adjustment to the difuse and direct component: from use of measured total daily surface irradiance (
-        // e.g. satellite PAR) to compute the surface irradiance at all time. SSP
-        adjustment[t] = par_surface_irradiance[t] / surface_irradiance[t];
-
-        //compute the adjusted irradiance surface value
-        i_z[0] = 0.0;
-        for l in 0..WL_COUNT {
-            direct[l] = direct[l] * adjustment[t];
-            diffuse[l] = diffuse[l] * adjustment[t];
-
-            i_z[0] = i_z[0] + (direct[l] + diffuse[l]) * DELTA_LAMBDA;
-        }
+        let (direct_corrected, diffuse_corrected) = correct_and_recompute_irradiance_components(
+            direct,
+            diffuse,
+            solar_correction,
+            iom,
+            day_length,
+            sunrise,
+            zenith_array[t],
+            time_array[t],
+            input.cloud
+        );
 
         let mut pp_profile = compute_pp_depth_profile(
             chl_profile,
             depth_array,
             zenith_array[t],
-            direct,
-            diffuse,
+            direct_corrected,
+            diffuse_corrected,
             input.bw,
             input.bbr,
             input.ay,

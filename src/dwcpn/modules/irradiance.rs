@@ -1,5 +1,8 @@
-use crate::dwcpn::modules::config::{WL_ARRAY, WL_COUNT};
+use crate::dwcpn::modules::config::{WL_ARRAY, WL_COUNT, DELTA_LAMBDA};
 use crate::dwcpn::modules::linear_interp::linear_interp;
+
+use std::f64::consts::PI;
+
 
 // DO NOT CHANGE THIS UNLESS YOU HAVE NEW LOOKUP TABLES FOR ALL OF THE BELOW CONST ARRAYS
 const TRANSMITTANCE_WL_COUNT: usize = 24;
@@ -334,4 +337,96 @@ fn interpolate_irradiances(
     }
 
     output_irradiances
+}
+
+pub fn correct_and_recompute_irradiance_components(
+    direct: [f64;WL_COUNT],
+    diffuse: [f64;WL_COUNT],
+    solar_correction: f64,
+    iom: f64,
+    day_length: f64,
+    sunrise: f64,
+    zenith_r: f64,
+    time: f64,
+    cloud_cover: f64
+) -> ([f64; WL_COUNT], [f64; WL_COUNT]) {
+    let mut direct_integrated: f64 = 0.0;
+    let mut diffuse_integrated: f64 = 0.0;
+
+    let mut direct_corrected: [f64; WL_COUNT] = [0.0; WL_COUNT];
+    let mut diffuse_corrected: [f64; WL_COUNT] = [0.0; WL_COUNT];
+
+    let mut surface_irradiance: f64 = 0.0;
+
+    for l in 0..WL_COUNT {
+        // apply fractional correction to diffuse and direct components of irradiance
+        // the max correction value is 1353.0, so this converts it to as though we were applying a percentage correction
+        direct_corrected[l] = direct[l] * solar_correction / 1353.0;
+        diffuse_corrected[l] = diffuse[l] * solar_correction / 1353.0;
+
+        // add this value to the integrated direct/diffuse components
+        direct_integrated = direct_integrated + (direct[l] * zenith_r.cos());
+        diffuse_integrated = diffuse_integrated + diffuse[l];
+    }
+
+    surface_irradiance = surface_irradiance + direct_integrated + diffuse_integrated;
+    // cloud effect calculations
+    let albedo = 0.28 / (1.0 + 6.43 * zenith_r.cos());
+    let cc = cloud_cover / 100.0;
+    let idir1 = &direct_integrated * (1.0 - cc);
+    let flux = ((1.0 - 0.5 * cc) * (0.82 - albedo * (1.0 - cc)) * zenith_r.cos())
+        / ((0.82 - albedo) * zenith_r.cos());
+    let idif1 = surface_irradiance * flux - idir1;
+    let dir_div = idir1 / &direct_integrated;
+    let dif_div = idif1 / &diffuse_integrated;
+
+    // let dir_div = &direct_integrated;
+    // let dif_div = &diffuse_integrated;
+
+    for l in 0..WL_COUNT {
+        direct_corrected[l] = direct_corrected[l] + dir_div;
+        diffuse_corrected[l] = diffuse_corrected[l] + dif_div;
+    }
+
+    // calculate reflection and convert watts/micron into einsteins/hr/nm
+    let zenith_w = (zenith_r.sin() / 1.333).asin();
+    let mut reflection = 0.5 * (zenith_r - zenith_w).sin().powi(2)
+        / (zenith_r + zenith_w).sin().powi(2);
+    reflection = reflection
+        + 0.5 * (zenith_r - zenith_w).tan().powi(2)
+        / (zenith_r + zenith_w).tan().powi(2);
+
+    // recompute surface irradiance across spectrum
+    surface_irradiance = 0.0;
+
+    for l in 0..WL_COUNT {
+        let wl_coefficient = WL_ARRAY[l] * 36.0 / (19.87 * 6.022 * 10e6);
+        direct_corrected[l] = direct_corrected[l] * wl_coefficient * zenith_r.cos();
+        diffuse_corrected[l] = diffuse_corrected[l] * wl_coefficient;
+
+        surface_irradiance = surface_irradiance + direct_corrected[l] + diffuse_corrected[l];
+
+        direct_corrected[l] = direct_corrected[l] * (1.0 - reflection);
+        diffuse_corrected[l] = diffuse_corrected[l] * 0.945;
+    }
+
+    // compute surface irradiance from total daily surface irradiance (e.g. satellite par)
+    let par_surface_irradiance: f64 = iom * (PI * (time - (sunrise)) / day_length).sin();
+    surface_irradiance = surface_irradiance * DELTA_LAMBDA;
+
+
+    // Adjustment to the difuse and direct component: from use of measured total daily surface irradiance (
+    // e.g. satellite PAR) to compute the surface irradiance at all time. SSP
+    let adjustment: f64 = par_surface_irradiance / surface_irradiance;
+
+    //compute the adjusted irradiance surface value
+    // i_z[0] = 0.0;
+    for l in 0..WL_COUNT {
+        direct_corrected[l] = direct_corrected[l] * adjustment;
+        diffuse_corrected[l] = diffuse_corrected[l] * adjustment;
+
+        // i_z[0] = i_z[0] + (direct[l] + diffuse[l]) * DELTA_LAMBDA;
+    }
+
+    (direct_corrected, diffuse_corrected)
 }
