@@ -105,7 +105,6 @@ pub fn compute_pp_depth_profile(
             }
         }
 
-        // let ac440 = ac[8]; // TODO: fix this to search for/interpolate to 440nm
         let ac440 = linear_interp(&WL_ARRAY, &ac, 440.0);
 
         let power = -(chl.log10());
