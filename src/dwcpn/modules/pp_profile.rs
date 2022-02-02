@@ -1,3 +1,5 @@
+use crate::dwcpn::dwcpn::{ModelInputs, PPErrors};
+use crate::dwcpn::dwcpn::PPErrors::DWCPNError;
 use crate::dwcpn::modules::absorption::calc_ac;
 use crate::dwcpn::modules::config::{AW, DEPTH_PROFILE_COUNT, DEPTH_PROFILE_STEP, WL_ARRAY, WL_COUNT, DELTA_LAMBDA};
 use crate::dwcpn::modules::light_profile::{calc_i_z_decay, calc_light_decay_profile, calc_par_profile, init_mu_d_and_i_z};
@@ -53,37 +55,37 @@ pub fn compute_pp_depth_profile(
     depth_profile: [f64; DEPTH_PROFILE_COUNT],
     i_alpha_profile: [f64; DEPTH_PROFILE_COUNT],
     par_profile: [f64; DEPTH_PROFILE_COUNT],
-    province_pmb: f64,
-) -> PpProfile {
+    model_inputs: &ModelInputs
+) -> Result<PpProfile, PPErrors> {
     let mut pp_profile: [f64; DEPTH_PROFILE_COUNT] = [0.0; DEPTH_PROFILE_COUNT];
 
     let mut i_alpha_sum: f64 = 0.0;
 
     for z in 0..DEPTH_PROFILE_COUNT {
-        pp_profile[z] = chl_profile[z] * province_pmb * (1.0 - (-i_alpha_profile[z] / province_pmb).exp());
+        pp_profile[z] = chl_profile[z] * model_inputs.pmb * (1.0 - (-i_alpha_profile[z] / model_inputs.pmb).exp());
         i_alpha_sum = i_alpha_sum + i_alpha_profile[z];
 
         if z > 0 && par_profile[z] < (0.01 * par_profile[0]) {
-            let (euph_index, euphotic_depth) = integrate_euphotic_depth(z, depth_profile, par_profile);
-            return PpProfile {
+            let (mut euph_index,  mut euphotic_depth) = integrate_euphotic_depth(z, depth_profile, par_profile);
+
+            // clamp euphotic_depth to physical depth of ocean if it is lower
+            if euphotic_depth.abs() > model_inputs.z_bottom.abs() {
+                euph_index = DEPTH_PROFILE_COUNT - 1;
+                euphotic_depth = model_inputs.z_bottom.abs();
+            }
+
+            return Ok(PpProfile {
                 pp_profile,
                 par_profile,
                 euphotic_depth,
                 euph_index,
-                spectral_i_star: i_alpha_sum / province_pmb,
+                spectral_i_star: i_alpha_sum / model_inputs.pmb,
                 success: true,
-            };
+            });
         }
     } // depth loop
 
-    return PpProfile {
-        pp_profile,
-        par_profile,
-        euphotic_depth: 0.0,
-        euph_index: 0,
-        spectral_i_star: 0.0,
-        success: false,
-    };
+    return Err(DWCPNError);
 }
 
 fn integrate_euphotic_depth(
