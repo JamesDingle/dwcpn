@@ -31,6 +31,10 @@ pub struct ModelSettings {
     pub mld_only: bool
 }
 
+pub enum PPErrors {
+    DWCPNError,
+}
+
 pub fn calc_pp(input: &ModelInputs, settings: &ModelSettings) -> (f64, f64, f64) {
 
     // generate chl depth profile
@@ -122,35 +126,33 @@ pub fn calc_pp(input: &ModelInputs, settings: &ModelSettings) -> (f64, f64, f64)
             depth_array,
             i_alpha_profile,
             par_profile,
-            input.pmb
+            input
         );
 
-        if pp_profile.success == true {
-            // clamp euphotic depth to bathymetry if it was calculated higher (in extreme clear water)
-            if pp_profile.euphotic_depth.abs() > input.z_bottom.abs() {
-                pp_profile.euph_index = DEPTH_PROFILE_COUNT - 1;
-                pp_profile.euphotic_depth = input.z_bottom.abs();
-            }
+        match pp_profile {
+            Ok(mut pp_profile) => {
+                euphotic_depth[t] = pp_profile.euphotic_depth;
 
-            euphotic_depth[t] = pp_profile.euphotic_depth;
+                if pp_profile.euph_index == 0 {
+                    pp_profile.euph_index = 1;
+                }
 
-            if pp_profile.euph_index == 0 {
-                pp_profile.euph_index = 1;
-            }
+                for z in 0..pp_profile.euph_index {
+                    pp[t] = pp[t] + DEPTH_PROFILE_STEP * (pp_profile.pp_profile[z] + pp_profile.pp_profile[z + 1]) / 2.0;
+                }
 
-            for z in 0..pp_profile.euph_index {
-                pp[t] = pp[t] + DEPTH_PROFILE_STEP * (pp_profile.pp_profile[z] + pp_profile.pp_profile[z + 1]) / 2.0;
-            }
-
-            pp[t] = pp[t]
-                + pp_profile.pp_profile[pp_profile.euph_index]
+                pp[t] = pp[t]
+                    + pp_profile.pp_profile[pp_profile.euph_index]
                     * (euphotic_depth[t]
-                        - (pp_profile.euph_index as f64 - 1.0) * DEPTH_PROFILE_STEP);
+                    - (pp_profile.euph_index as f64 - 1.0) * DEPTH_PROFILE_STEP);
 
-            // TODO: Double check we should be dividing by euph index here and not euphotic depth
-            spectral_i_star_sum = spectral_i_star_sum + (pp_profile.spectral_i_star / (pp_profile.euph_index as f64).abs());
-            spectral_i_star_count = spectral_i_star_count + 1.0;
+                // TODO: Double check we should be dividing by euph index here and not euphotic depth
+                spectral_i_star_sum = spectral_i_star_sum + (pp_profile.spectral_i_star / (pp_profile.euph_index as f64).abs());
+                spectral_i_star_count = spectral_i_star_count + 1.0;
+            },
+            Err(e) => println!("poo")
         }
+
     } // time loop
 
     let mut pp_day = pp[0] * delta_prestart / 2.0;
