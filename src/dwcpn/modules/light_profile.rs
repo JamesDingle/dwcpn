@@ -1,3 +1,4 @@
+use crate::dwcpn::modules::absorption::calc_ac;
 use crate::dwcpn::modules::config::{AW, DELTA_LAMBDA, DEPTH_PROFILE_COUNT, DEPTH_PROFILE_STEP, WL_ARRAY, WL_COUNT};
 use crate::dwcpn::modules::linear_interp::linear_interp;
 
@@ -110,6 +111,48 @@ pub fn calc_i_z_decay(
 
 // note to self: implement the correct passing of par_profile
     (i_alpha, i_z, par)
+}
+
+pub fn calc_light_decay_profile(
+    chl_profile: [f64; DEPTH_PROFILE_COUNT],
+    direct_irradiance: [f64; WL_COUNT],
+    diffuse_irradiance: [f64; WL_COUNT],
+    zenith_r: f64,
+    yellow_substance: f64,
+    ay: [f64; WL_COUNT],
+    bbr: [f64; WL_COUNT],
+    bw: [f64; WL_COUNT],
+    province_alpha: f64
+) -> ([f64; DEPTH_PROFILE_COUNT], [f64; DEPTH_PROFILE_COUNT]) {
+    let mut i_alpha_profile = [0.0; DEPTH_PROFILE_COUNT];
+    let mut par_profile = [0.0; DEPTH_PROFILE_COUNT];
+
+    let (mu_d, mut i_z) = init_mu_d_and_i_z(direct_irradiance, diffuse_irradiance, zenith_r);
+
+    for z in 0..DEPTH_PROFILE_COUNT {
+        let chl = chl_profile[z];
+        let (ac, ac_mean) = calc_ac(chl);
+
+        if ac_mean == 0.0 { break; }
+
+        let (i_alpha_z, i_z_temp, par_z) = calc_i_z_decay(
+            ac,
+            mu_d,
+            i_z,
+            chl,
+            yellow_substance,
+            ay,
+            bbr,
+            bw,
+            province_alpha,
+            ac_mean
+        );
+        i_alpha_profile[z] = i_alpha_z;
+        i_z = i_z_temp;
+        par_profile[z] = par_z;
+    }
+
+    (i_alpha_profile,par_profile)
 }
 
 pub fn calc_par_profile(i_z: [f64; WL_COUNT]) -> [f64; DEPTH_PROFILE_COUNT] {

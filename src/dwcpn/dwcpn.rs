@@ -5,6 +5,7 @@ use crate::dwcpn::modules::pp_profile::compute_pp_depth_profile;
 use crate::dwcpn::modules::time::{compute_sunrise, generate_time_array};
 use crate::dwcpn::modules::zenith::{generate_zenith_array, compute_zenith_time};
 use std::f64::consts::PI;
+use crate::dwcpn::modules::light_profile::calc_light_decay_profile;
 
 pub struct ModelInputs {
     pub lat: f64,
@@ -104,18 +105,24 @@ pub fn calc_pp(input: &ModelInputs, settings: &ModelSettings) -> (f64, f64, f64)
             input.cloud
         );
 
+        let (i_alpha_profile, par_profile) = calc_light_decay_profile(
+            chl_profile,
+            direct_corrected,
+            diffuse_corrected,
+            zenith_array[t],
+            input.yel_sub,
+            input.ay,
+            input.bbr,
+            input.bw,
+            input.alpha_b
+        );
+
         let mut pp_profile = compute_pp_depth_profile(
             chl_profile,
             depth_array,
-            zenith_array[t],
-            direct_corrected,
-            diffuse_corrected,
-            input.bw,
-            input.bbr,
-            input.ay,
-            input.alpha_b,
-            input.pmb,
-            input.yel_sub,
+            i_alpha_profile,
+            par_profile,
+            input.pmb
         );
 
         if pp_profile.success == true {
