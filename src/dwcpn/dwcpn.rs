@@ -5,6 +5,7 @@ use crate::dwcpn::modules::pp_profile::compute_pp_depth_profile;
 use crate::dwcpn::modules::time::{compute_sunrise, generate_time_array};
 use crate::dwcpn::modules::zenith::{generate_zenith_array, compute_zenith_time};
 use std::f64::consts::PI;
+use crate::dwcpn::dwcpn::PPErrors::PPTooBig;
 use crate::dwcpn::modules::light_profile::calc_light_decay_profile;
 
 pub struct ModelInputs {
@@ -31,11 +32,13 @@ pub struct ModelSettings {
     pub mld_only: bool
 }
 
+#[derive(Debug)]
 pub enum PPErrors {
     DWCPNError,
+    PPTooBig
 }
 
-pub fn calc_pp(input: &ModelInputs, settings: &ModelSettings) -> (f64, f64, f64) {
+pub fn calc_pp(input: &ModelInputs, settings: &ModelSettings) -> Result<(f64, f64, f64), PPErrors> {
 
     // generate chl depth profile
     let (depth_array, chl_profile) = gen_chl_profile(input, settings);
@@ -174,6 +177,12 @@ pub fn calc_pp(input: &ModelInputs, settings: &ModelSettings) -> (f64, f64, f64)
 
     // mutliply by two because we have only integrated over half of the day
     pp_day = pp_day * 2.0;
-    return (pp_day, max_euphotic_depth, spectral_i_star_mean);
+
+    if pp_day > 10000.0 {
+        Err(PPTooBig)
+    } else {
+        Ok((pp_day, max_euphotic_depth, spectral_i_star_mean))
+    }
+
 
 }
