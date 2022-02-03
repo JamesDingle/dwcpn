@@ -1,9 +1,5 @@
-use crate::dwcpn::dwcpn::{ModelInputs, PPErrors};
-use crate::dwcpn::dwcpn::PPErrors::DWCPNError;
-use crate::dwcpn::modules::absorption::calc_ac;
-use crate::dwcpn::modules::config::{AW, DEPTH_PROFILE_COUNT, DEPTH_PROFILE_STEP, WL_ARRAY, WL_COUNT, DELTA_LAMBDA};
-use crate::dwcpn::modules::light_profile::{calc_i_z_decay, calc_light_decay_profile, calc_par_profile, init_mu_d_and_i_z};
-use crate::dwcpn::modules::linear_interp::linear_interp;
+use crate::dwcpn::modules::config::{DEPTH_PROFILE_COUNT, DEPTH_PROFILE_STEP, WL_ARRAY, WL_COUNT};
+use crate::{ModelInputs, PPErrors};
 
 
 pub struct PpProfile {
@@ -85,7 +81,7 @@ pub fn compute_pp_depth_profile(
         }
     } // depth loop
 
-    return Err(DWCPNError);
+    return Err(PPErrors::DWCPNError);
 }
 
 fn integrate_euphotic_depth(

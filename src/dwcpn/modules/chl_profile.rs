@@ -1,6 +1,6 @@
 use crate::dwcpn::modules::config::{DEPTH_PROFILE_COUNT, DEPTH_PROFILE_START, DEPTH_PROFILE_STEP};
 use std::f64::consts::PI;
-use crate::dwcpn::dwcpn::{ModelInputs, ModelSettings};
+use crate::{ModelInputs, ModelSettings};
 
 const TAU: f64 = PI * 2.0;
 

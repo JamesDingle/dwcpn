@@ -1,49 +1,13 @@
 use crate::dwcpn::modules::chl_profile::{gen_chl_profile};
-use crate::dwcpn::modules::config::{DEPTH_PROFILE_COUNT, DEPTH_PROFILE_STEP, TIMESTEPS, WL_COUNT};
+use crate::dwcpn::modules::config::{DEPTH_PROFILE_STEP, TIMESTEPS};
 use crate::dwcpn::modules::irradiance::{compute_irradiance_components, correct_and_recompute_irradiance_components, lookup_thekaekara_correction};
 use crate::dwcpn::modules::pp_profile::compute_pp_depth_profile;
 use crate::dwcpn::modules::time::{compute_sunrise, generate_time_array};
 use crate::dwcpn::modules::zenith::{generate_zenith_array, compute_zenith_time};
 use std::f64::consts::PI;
-use crate::dwcpn::dwcpn::PPErrors::PPTooBig;
 use crate::dwcpn::modules::light_profile::calc_light_decay_profile;
+use crate::{ModelInputs, ModelOutputs, ModelSettings, PPErrors};
 
-pub struct ModelInputs {
-    pub lat: f64,
-    pub lon: f64,
-    pub z_bottom: f64,
-    pub iday: u16,
-    pub alpha_b: f64,
-    pub pmb: f64,
-    pub z_m: f64,
-    pub mld: f64,
-    pub chl: f64,
-    pub rho: f64,
-    pub sigma: f64,
-    pub cloud: f64,
-    pub yel_sub: f64,
-    pub par: f64,
-    pub bw: [f64; WL_COUNT],
-    pub bbr: [f64; WL_COUNT],
-    pub ay: [f64; WL_COUNT],
-}
-
-pub struct ModelSettings {
-    pub mld_only: bool
-}
-
-pub struct ModelOutputs {
-    pub pp_day: Option<f64>,
-    pub euphotic_depth: Option<f64>,
-    pub spectral_i_star: Option<f64>,
-    pub par_noon_max: Option<f64>
-}
-
-#[derive(Debug)]
-pub enum PPErrors {
-    DWCPNError,
-    PPTooBig
-}
 
 pub fn calc_pp(input: &ModelInputs, settings: &ModelSettings) -> Result<ModelOutputs, PPErrors> {
 
@@ -131,7 +95,7 @@ pub fn calc_pp(input: &ModelInputs, settings: &ModelSettings) -> Result<ModelOut
             input.alpha_b
         );
 
-        let mut pp_profile = compute_pp_depth_profile(
+        let pp_profile = compute_pp_depth_profile(
             chl_profile,
             depth_array,
             i_alpha_profile,
@@ -160,7 +124,7 @@ pub fn calc_pp(input: &ModelInputs, settings: &ModelSettings) -> Result<ModelOut
                 spectral_i_star_sum = spectral_i_star_sum + (pp_profile.spectral_i_star / (pp_profile.euph_index as f64).abs());
                 spectral_i_star_count = spectral_i_star_count + 1.0;
             },
-            Err(e) => println!("poo")
+            Err(e) => println!("{:?}", e)
         }
 
     } // time loop
@@ -186,7 +150,7 @@ pub fn calc_pp(input: &ModelInputs, settings: &ModelSettings) -> Result<ModelOut
     pp_day = pp_day * 2.0;
 
     if pp_day > 10000.0 {
-        Err(PPTooBig)
+        Err(PPErrors::PPTooBig)
     } else {
         Ok(
             ModelOutputs {

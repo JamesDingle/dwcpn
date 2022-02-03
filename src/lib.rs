@@ -1,10 +1,50 @@
+use crate::dwcpn::modules::config::WL_COUNT;
+
 pub mod dwcpn;
+
+pub struct ModelInputs {
+    pub lat: f64,
+    pub lon: f64,
+    pub z_bottom: f64,
+    pub iday: u16,
+    pub alpha_b: f64,
+    pub pmb: f64,
+    pub z_m: f64,
+    pub mld: f64,
+    pub chl: f64,
+    pub rho: f64,
+    pub sigma: f64,
+    pub cloud: f64,
+    pub yel_sub: f64,
+    pub par: f64,
+    pub bw: [f64; WL_COUNT],
+    pub bbr: [f64; WL_COUNT],
+    pub ay: [f64; WL_COUNT],
+}
+
+pub struct ModelSettings {
+    pub mld_only: bool
+}
+
+pub struct ModelOutputs {
+    pub pp_day: Option<f64>,
+    pub euphotic_depth: Option<f64>,
+    pub spectral_i_star: Option<f64>,
+    pub par_noon_max: Option<f64>
+}
+
+#[derive(Debug)]
+pub enum PPErrors {
+    DWCPNError,
+    PPTooBig
+}
 
 #[cfg(test)]
 mod tests {
-    use crate::dwcpn::dwcpn::{calc_pp, ModelInputs, ModelSettings};
+    use crate::dwcpn::dwcpn::{calc_pp};
     use crate::dwcpn::modules::pp_profile::{calculate_ay, calculate_bbr, calculate_bw};
-    
+    use crate::{ModelInputs, ModelSettings};
+
     #[test]
     fn integration_test() {
         
