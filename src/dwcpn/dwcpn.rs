@@ -32,13 +32,20 @@ pub struct ModelSettings {
     pub mld_only: bool
 }
 
+pub struct ModelOutputs {
+    pub pp_day: Option<f64>,
+    pub euphotic_depth: Option<f64>,
+    pub spectral_i_star: Option<f64>,
+    pub par_noon_max: Option<f64>
+}
+
 #[derive(Debug)]
 pub enum PPErrors {
     DWCPNError,
     PPTooBig
 }
 
-pub fn calc_pp(input: &ModelInputs, settings: &ModelSettings) -> Result<(f64, f64, f64), PPErrors> {
+pub fn calc_pp(input: &ModelInputs, settings: &ModelSettings) -> Result<ModelOutputs, PPErrors> {
 
     // generate chl depth profile
     let (depth_array, chl_profile) = gen_chl_profile(input, settings);
@@ -181,7 +188,14 @@ pub fn calc_pp(input: &ModelInputs, settings: &ModelSettings) -> Result<(f64, f6
     if pp_day > 10000.0 {
         Err(PPTooBig)
     } else {
-        Ok((pp_day, max_euphotic_depth, spectral_i_star_mean))
+        Ok(
+            ModelOutputs {
+                pp_day: Some(pp_day),
+                euphotic_depth: Some(max_euphotic_depth),
+                spectral_i_star: Some(spectral_i_star_mean),
+                par_noon_max: Some(iom)
+            }
+        )
     }
 
 

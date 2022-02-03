@@ -33,10 +33,11 @@ mod tests {
         };
 
         match calc_pp(&inputs, &settings) {
-            Ok((pp, _, _)) => {
-                println!("PP Test result: {} (expected 721.7......)", pp);
-                assert!(pp >= 721.0);
-                assert!(pp <= 722.0);
+            Ok(model_output) => {
+                println!("PP Test result: {} (expected 721.7......)", model_output.pp_day.unwrap());
+                println!("IOM output: {}", model_output.par_noon_max.unwrap());
+                assert!(model_output.pp_day.unwrap() >= 721.0);
+                assert!(model_output.pp_day.unwrap() <= 722.0);
             },
             Err(e) => {
                 println!("{:?}", e);
