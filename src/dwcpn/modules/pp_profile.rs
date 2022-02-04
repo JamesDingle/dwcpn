@@ -4,7 +4,6 @@ use crate::{ModelInputs, PPErrors};
 
 pub struct PpProfile {
     pub pp_profile: [f64; DEPTH_PROFILE_COUNT],
-    pub par_profile: [f64; DEPTH_PROFILE_COUNT],
     pub euphotic_depth: f64,
     pub euph_index: usize,
     pub spectral_i_star: f64,
@@ -47,10 +46,10 @@ pub fn calculate_ay() -> [f64; WL_COUNT] {
 }
 
 pub fn compute_pp_depth_profile(
-    chl_profile: [f64; DEPTH_PROFILE_COUNT],
-    depth_profile: [f64; DEPTH_PROFILE_COUNT],
-    i_alpha_profile: [f64; DEPTH_PROFILE_COUNT],
-    par_profile: [f64; DEPTH_PROFILE_COUNT],
+    chl_profile: &[f64; DEPTH_PROFILE_COUNT],
+    depth_profile: &[f64; DEPTH_PROFILE_COUNT],
+    i_alpha_profile: &[f64; DEPTH_PROFILE_COUNT],
+    par_profile: &[f64; DEPTH_PROFILE_COUNT],
     model_inputs: &ModelInputs
 ) -> Result<PpProfile, PPErrors> {
     let mut pp_profile: [f64; DEPTH_PROFILE_COUNT] = [0.0; DEPTH_PROFILE_COUNT];
@@ -72,7 +71,6 @@ pub fn compute_pp_depth_profile(
 
             return Ok(PpProfile {
                 pp_profile,
-                par_profile,
                 euphotic_depth,
                 euph_index,
                 spectral_i_star: i_alpha_sum / model_inputs.pmb,
@@ -86,8 +84,8 @@ pub fn compute_pp_depth_profile(
 
 fn integrate_euphotic_depth(
     depth_index: usize,
-    depth_profile: [f64; DEPTH_PROFILE_COUNT],
-    par_profile: [f64; DEPTH_PROFILE_COUNT]
+    depth_profile: &[f64; DEPTH_PROFILE_COUNT],
+    par_profile: &[f64; DEPTH_PROFILE_COUNT]
 ) -> (usize, f64) {
     let euph_index = depth_index - 1;
     let euphotic_depth = depth_profile[euph_index]

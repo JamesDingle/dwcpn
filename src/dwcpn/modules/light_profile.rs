@@ -8,9 +8,9 @@ pub struct LightProfile {
 }
 
 pub fn init_mu_d_and_i_z (
-    direct_irradiance: [f64; WL_COUNT],
-    diffuse_irradiance: [f64; WL_COUNT],
-    zenith_r: f64
+    direct_irradiance: &[f64; WL_COUNT],
+    diffuse_irradiance: &[f64; WL_COUNT],
+    zenith_r: &f64
 ) -> ([f64; WL_COUNT], [f64; WL_COUNT]) {
     let mut i_zero: [f64; WL_COUNT] = [0.0; WL_COUNT];
     let mut mu_d: [f64; WL_COUNT] = [0.0; WL_COUNT];
@@ -28,22 +28,22 @@ pub fn init_mu_d_and_i_z (
 }
 
 pub fn calc_i_z_decay(
-    ac: [f64; WL_COUNT],
-    mu_d: [f64; WL_COUNT],
+    ac: &[f64; WL_COUNT],
+    mu_d: &[f64; WL_COUNT],
     i_z: [f64; WL_COUNT],
-    chl: f64,
-    yellow_substance: f64,
-    ay: [f64; WL_COUNT],
-    bbr: [f64; WL_COUNT],
-    bw: [f64; WL_COUNT],
-    province_alpha: f64,
-    ac_mean: f64
+    chl: &f64,
+    yellow_substance: &f64,
+    ay: &[f64; WL_COUNT],
+    bbr: &[f64; WL_COUNT],
+    bw: &[f64; WL_COUNT],
+    province_alpha: &f64,
+    ac_mean: &f64
 ) -> (f64, [f64; WL_COUNT], f64) {
     let mut i_z= i_z.clone();
     let mut i_alpha = 0.0;
     let mut k: [f64; WL_COUNT] = [0.0; WL_COUNT];
 
-    let ac440 = linear_interp(&WL_ARRAY, &ac, 440.0);
+    let ac440 = linear_interp(&WL_ARRAY, ac, 440.0);
 
     let power = -(chl.log10());
     let ay440 = yellow_substance * ac440;
@@ -96,20 +96,20 @@ pub fn calc_i_z_decay(
 }
 
 pub fn calc_light_decay_profile(
-    chl_profile: [f64; DEPTH_PROFILE_COUNT],
-    direct_irradiance: [f64; WL_COUNT],
-    diffuse_irradiance: [f64; WL_COUNT],
-    zenith_r: f64,
-    yellow_substance: f64,
-    ay: [f64; WL_COUNT],
-    bbr: [f64; WL_COUNT],
-    bw: [f64; WL_COUNT],
-    province_alpha: f64
+    chl_profile: &[f64; DEPTH_PROFILE_COUNT],
+    direct_irradiance: &[f64; WL_COUNT],
+    diffuse_irradiance: &[f64; WL_COUNT],
+    zenith_r: &f64,
+    yellow_substance: &f64,
+    ay: &[f64; WL_COUNT],
+    bbr: &[f64; WL_COUNT],
+    bw: &[f64; WL_COUNT],
+    province_alpha: &f64
 ) -> ([f64; DEPTH_PROFILE_COUNT], [f64; DEPTH_PROFILE_COUNT]) {
     let mut i_alpha_profile = [0.0; DEPTH_PROFILE_COUNT];
     let mut par_profile = [0.0; DEPTH_PROFILE_COUNT];
 
-    let (mu_d, mut i_z) = init_mu_d_and_i_z(direct_irradiance, diffuse_irradiance, zenith_r);
+    let (mu_d, mut i_z) = init_mu_d_and_i_z(&direct_irradiance, &diffuse_irradiance, &zenith_r);
 
     for z in 0..DEPTH_PROFILE_COUNT {
         let chl = chl_profile[z];
@@ -118,16 +118,16 @@ pub fn calc_light_decay_profile(
         if ac_mean == 0.0 { break; }
 
         let (i_alpha_z, i_z_temp, par_z) = calc_i_z_decay(
-            ac,
-            mu_d,
+            &ac,
+            &mu_d,
             i_z,
-            chl,
-            yellow_substance,
-            ay,
-            bbr,
-            bw,
-            province_alpha,
-            ac_mean
+            &chl,
+            &yellow_substance,
+            &ay,
+            &bbr,
+            &bw,
+            &province_alpha,
+            &ac_mean
         );
         i_alpha_profile[z] = i_alpha_z;
         i_z = i_z_temp;

@@ -96,23 +96,23 @@ pub fn calc_pp(input: &ModelInputs, settings: &ModelSettings) -> Result<ModelOut
         );
 
         let (i_alpha_profile, par_profile) = calc_light_decay_profile(
-            chl_profile,
-            direct_corrected,
-            diffuse_corrected,
-            zenith_array[t],
-            input.yel_sub,
-            input.ay,
-            input.bbr,
-            input.bw,
-            input.alpha_b
+            &chl_profile,
+            &direct_corrected,
+            &diffuse_corrected,
+            &zenith_array[t],
+            &input.yel_sub,
+            &input.ay,
+            &input.bbr,
+            &input.bw,
+            &input.alpha_b
         );
 
         let pp_profile = compute_pp_depth_profile(
-            chl_profile,
-            depth_array,
-            i_alpha_profile,
-            par_profile,
-            input
+            &chl_profile,
+            &depth_array,
+            &i_alpha_profile,
+            &par_profile,
+            &input
         );
 
         match pp_profile {
