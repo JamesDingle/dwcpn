@@ -23,7 +23,8 @@ pub struct ModelInputs {
 }
 
 pub struct ModelSettings {
-    pub mld_only: bool
+    pub mld_only: bool,
+    pub iom_only: bool
 }
 
 pub struct ModelOutputs {
@@ -49,7 +50,8 @@ mod tests {
     fn integration_test() {
         
         let settings = ModelSettings {
-            mld_only: false
+            mld_only: false,
+            iom_only: false
         };
         
         let inputs = ModelInputs {

@@ -65,6 +65,18 @@ pub fn calc_pp(input: &ModelInputs, settings: &ModelSettings) -> Result<ModelOut
             // iom = noon time maximum
             iom = input.par * PI / (2.0 * day_length);
             delta_prestart = start_time - sunrise;
+
+            if settings.iom_only == true {
+                return Ok(
+                    ModelOutputs {
+                        pp_day: None,
+                        euphotic_depth: None,
+                        spectral_i_star: None,
+                        par_noon_max: Some(iom)
+                    }
+                )
+            }
+
         }
 
         // compute direct and diffuse irradiance components at sea level

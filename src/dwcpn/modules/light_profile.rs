@@ -7,24 +7,6 @@ pub struct LightProfile {
     pub i_alpha_profile: [f64; DEPTH_PROFILE_COUNT]
 }
 
-// pub fn generate_light_profile(
-//     direct_irradiance: [f64; WL_COUNT],
-//     diffuse_irradiance: [f64; WL_COUNT],
-//     zenith_r: f64,
-// ) -> LightProfile {
-//
-//     let par_z: [f64; DEPTH_PROFILE_COUNT] = [0.0; DEPTH_PROFILE_COUNT];
-//     let i_alpha_z: [f64; DEPTH_PROFILE_COUNT] = [0.0; DEPTH_PROFILE_COUNT];
-//
-//     let (mu_d, i_z) = init_mu_d_and_i_z(direct_irradiance, diffuse_irradiance, zenith_r);
-//
-//     LightProfile {
-//         par_profile: par_z,
-//         i_alpha_profile: i_alpha_z
-//     }
-//
-// }
-
 pub fn init_mu_d_and_i_z (
     direct_irradiance: [f64; WL_COUNT],
     diffuse_irradiance: [f64; WL_COUNT],
