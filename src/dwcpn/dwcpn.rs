@@ -100,11 +100,7 @@ pub fn calc_pp(input: &ModelInputs, settings: &ModelSettings) -> Result<ModelOut
             direct_corrected,
             diffuse_corrected,
             zenith_array[t],
-            input.yel_sub,
-            input.ay,
-            input.bbr,
-            input.bw,
-            input.alpha_b
+            &input
         );
 
         let pp_profile = compute_pp_depth_profile(
@@ -132,7 +128,6 @@ pub fn calc_pp(input: &ModelInputs, settings: &ModelSettings) -> Result<ModelOut
                     * (euphotic_depth[t]
                     - (pp_profile.euph_index as f64 - 1.0) * DEPTH_PROFILE_STEP);
 
-                // TODO: Double check we should be dividing by euph index here and not euphotic depth
                 spectral_i_star_sum = spectral_i_star_sum + (pp_profile.spectral_i_star / (pp_profile.euph_index as f64).abs());
                 spectral_i_star_count = spectral_i_star_count + 1.0;
             },

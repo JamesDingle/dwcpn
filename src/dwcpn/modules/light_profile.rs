@@ -1,6 +1,7 @@
 use crate::dwcpn::modules::absorption::calc_ac;
 use crate::dwcpn::modules::config::{AW, DELTA_LAMBDA, DEPTH_PROFILE_COUNT, DEPTH_PROFILE_STEP, WL_ARRAY, WL_COUNT};
 use crate::dwcpn::modules::linear_interp::linear_interp;
+use crate::ModelInputs;
 
 pub struct LightProfile {
     pub par_profile: [f64; DEPTH_PROFILE_COUNT],
@@ -32,11 +33,7 @@ pub fn calc_i_z_decay(
     mu_d: [f64; WL_COUNT],
     i_z: [f64; WL_COUNT],
     chl: f64,
-    yellow_substance: f64,
-    ay: [f64; WL_COUNT],
-    bbr: [f64; WL_COUNT],
-    bw: [f64; WL_COUNT],
-    province_alpha: f64,
+    inputs: &ModelInputs,
     ac_mean: f64
 ) -> (f64, [f64; WL_COUNT], f64) {
     let mut i_z= i_z.clone();
@@ -46,7 +43,7 @@ pub fn calc_i_z_decay(
     let ac440 = linear_interp(&WL_ARRAY, &ac, 440.0);
 
     let power = -(chl.log10());
-    let ay440 = yellow_substance * ac440;
+    let ay440 = inputs.yel_sub * ac440;
 
     let bc660 = 0.407 * chl.powf(0.795);
     let mut bbtilda = (0.78 + 0.42 * power) * 0.01;
@@ -65,14 +62,14 @@ pub fn calc_i_z_decay(
 
     for l in 0..WL_COUNT {
         let wl = WL_ARRAY[l];
-        let a = AW[l] + ac[l] + ay440 * ay[l] + 2.0 * bbr[l];
+        let a = AW[l] + ac[l] + ay440 * inputs.ay[l] + 2.0 * inputs.bbr[l];
         let mut bc = bc660 * (660.0 / wl).powf(power);
 
         if bc < 0.0 {
             bc = 0.0
         };
 
-        let bb = bc * bbtilda + bw[l] * 0.50;
+        let bb = bc * bbtilda + inputs.bw[l] * 0.50;
 
         k[l] = (a + bb) / mu_d[l];
 
@@ -83,7 +80,7 @@ pub fn calc_i_z_decay(
         // a.ka. (mgC per mgChl per Hour) / (Watts per m^2)
         // the line below converts irradiance (light units) to einsteins per m^2 per hour
         // this makes it compatible with the par units
-        let x = province_alpha * ac[l] * 6022.0 / (2.77 * 36.0 * ac_mean);
+        let x = inputs.alpha_b * ac[l] * 6022.0 / (2.77 * 36.0 * ac_mean);
 
 
 
@@ -100,11 +97,7 @@ pub fn calc_light_decay_profile(
     direct_irradiance: [f64; WL_COUNT],
     diffuse_irradiance: [f64; WL_COUNT],
     zenith_r: f64,
-    yellow_substance: f64,
-    ay: [f64; WL_COUNT],
-    bbr: [f64; WL_COUNT],
-    bw: [f64; WL_COUNT],
-    province_alpha: f64
+    inputs: &ModelInputs,
 ) -> ([f64; DEPTH_PROFILE_COUNT], [f64; DEPTH_PROFILE_COUNT]) {
     let mut i_alpha_profile = [0.0; DEPTH_PROFILE_COUNT];
     let mut par_profile = [0.0; DEPTH_PROFILE_COUNT];
@@ -122,29 +115,18 @@ pub fn calc_light_decay_profile(
             mu_d,
             i_z,
             chl,
-            yellow_substance,
-            ay,
-            bbr,
-            bw,
-            province_alpha,
+            inputs,
             ac_mean
         );
         i_alpha_profile[z] = i_alpha_z;
         i_z = i_z_temp;
         par_profile[z] = par_z;
+
+        if par_profile[z] < (0.01 * par_profile[0]) {
+            break;
+        }
+
     }
 
     (i_alpha_profile,par_profile)
-}
-
-pub fn calc_par_profile(i_z: [f64; WL_COUNT]) -> [f64; DEPTH_PROFILE_COUNT] {
-    let mut par_profile = [0.0; DEPTH_PROFILE_COUNT];
-
-    for z in 0..DEPTH_PROFILE_COUNT {
-        for l in 0..WL_COUNT {
-            par_profile[z] = par_profile[z] + i_z[l] * DELTA_LAMBDA;
-        }
-    }
-
-    par_profile
 }
