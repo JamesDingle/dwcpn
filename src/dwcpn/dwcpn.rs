@@ -1,15 +1,16 @@
+use std::borrow::Borrow;
 use crate::dwcpn::modules::chl_profile::{gen_chl_profile};
 use crate::dwcpn::modules::config::{DEPTH_PROFILE_STEP, TIMESTEPS};
 use crate::dwcpn::modules::irradiance::{compute_irradiance_components, correct_and_recompute_irradiance_components, lookup_thekaekara_correction};
-use crate::dwcpn::modules::pp_profile::compute_pp_depth_profile;
+use crate::dwcpn::modules::pp_profile::{compute_pp_depth_profile, compute_prochloro_profile};
 use crate::dwcpn::modules::time::{compute_sunrise, generate_time_array};
 use crate::dwcpn::modules::zenith::{generate_zenith_array, compute_zenith_time};
 use std::f64::consts::PI;
 use crate::dwcpn::modules::light_profile::calc_light_decay_profile;
-use crate::{ModelInputs, ModelOutputs, ModelSettings, PPErrors};
+use crate::{DEPTH_PROFILE_COUNT, ModelInputs, ModelOutputs, ModelSettings, PPErrors};
 
 
-pub fn calc_pp(input: &ModelInputs, settings: &ModelSettings) -> Result<ModelOutputs, PPErrors> {
+pub fn calc_production(input: &ModelInputs, settings: &ModelSettings) -> Result<ModelOutputs, PPErrors> {
 
     // generate chl depth profile
     let (depth_array, chl_profile) = gen_chl_profile(input, settings);
@@ -32,6 +33,11 @@ pub fn calc_pp(input: &ModelInputs, settings: &ModelSettings) -> Result<ModelOut
     // arrays to store results
     let mut pp: [f64; TIMESTEPS] = [0.0; TIMESTEPS];
     let mut euphotic_depth: [f64; TIMESTEPS] = [0.0; TIMESTEPS];
+    let mut pro_1_profile: Option<[f64; DEPTH_PROFILE_COUNT]> = None;
+    let mut pro_2_profile: Option<[f64; DEPTH_PROFILE_COUNT]> = None;
+    // let mut pro_total_matrix: [f64; DEPTH_PROFILE_COUNT * TIMESTEPS] = [0.0; DEPTH_PROFILE_COUNT * TIMESTEPS];
+    let mut pro_total_profile: Option<[f64; DEPTH_PROFILE_COUNT]> = None;
+    let mut pro_total_count: usize = 0;
     // let mut spectral_i_star: [f64; TIMESTEPS] = [0.0; TIMESTEPS];
 
     // spectral i star is calculated as a running mean
@@ -72,7 +78,10 @@ pub fn calc_pp(input: &ModelInputs, settings: &ModelSettings) -> Result<ModelOut
                         pp_day: None,
                         euphotic_depth: None,
                         spectral_i_star: None,
-                        par_noon_max: Some(iom)
+                        par_noon_max: Some(iom),
+                        pro_1_profile: None,
+                        pro_2_profile: None,
+                        pro_total_profile: None
                     }
                 )
             }
@@ -103,21 +112,20 @@ pub fn calc_pp(input: &ModelInputs, settings: &ModelSettings) -> Result<ModelOut
             &input
         );
 
+
         let pp_profile = compute_pp_depth_profile(
-            chl_profile,
-            depth_array,
-            i_alpha_profile,
-            par_profile,
-            input
+            &chl_profile,
+            &depth_array,
+            &i_alpha_profile,
+            &par_profile,
+            &input
         );
 
         match pp_profile {
             Ok(mut pp_profile) => {
                 euphotic_depth[t] = pp_profile.euphotic_depth;
 
-                if pp_profile.euph_index == 0 {
-                    pp_profile.euph_index = 1;
-                }
+                if pp_profile.euph_index == 0 { pp_profile.euph_index = 1; }
 
                 for z in 0..pp_profile.euph_index {
                     pp[t] = pp[t] + DEPTH_PROFILE_STEP * (pp_profile.pp_profile[z] + pp_profile.pp_profile[z + 1]) / 2.0;
@@ -132,6 +140,40 @@ pub fn calc_pp(input: &ModelInputs, settings: &ModelSettings) -> Result<ModelOut
                 spectral_i_star_count = spectral_i_star_count + 1.0;
             },
             Err(e) => println!("{:?}", e)
+        }
+
+
+        if settings.prochloro_inputs.is_some() {
+            let pro_surf = &settings.prochloro_inputs.as_ref().unwrap().prochloro_surface;
+            let pro_max = &settings.prochloro_inputs.as_ref().unwrap().prochloro_maximum;
+
+            let prochloro_profile = compute_prochloro_profile(
+                &chl_profile,
+                &depth_array,
+                &i_alpha_profile,
+                &par_profile,
+                &input,
+                &pro_surf,
+                &pro_max
+            );
+
+            match prochloro_profile {
+                Ok(mut prochloro_profile) => {
+                    euphotic_depth[t] = prochloro_profile.euphotic_depth;
+
+                    if prochloro_profile.euph_index == 0 { prochloro_profile.euph_index = 1; }
+
+                    let mut pro_output_profile: [f64; DEPTH_PROFILE_COUNT] = [0.0; DEPTH_PROFILE_COUNT];
+                    // TODO: double check if we need to cut off at euphotic depth for prochlorococcus
+                    for z in 0..prochloro_profile.euph_index {
+                        pro_output_profile[z] = pro_output_profile[z] + prochloro_profile.pro_1_profile[z] + prochloro_profile.pro_2_profile[z];
+                    }
+
+                    pro_total_count += 1;
+                    pro_total_profile = Some(pro_output_profile);
+                },
+                Err(e) => println!("{:?}", e)
+            }
         }
 
     } // time loop
@@ -156,6 +198,13 @@ pub fn calc_pp(input: &ModelInputs, settings: &ModelSettings) -> Result<ModelOut
     // mutliply by two because we have only integrated over half of the day
     pp_day = pp_day * 2.0;
 
+    // Prochlorococcus array integration
+    if pro_total_profile.is_some() {
+        for z in 0..DEPTH_PROFILE_COUNT {
+            pro_total_profile.unwrap()[z] /= pro_total_count as f64;
+        }
+    }
+
     if pp_day > 10000.0 {
         Err(PPErrors::PPTooBig)
     } else {
@@ -164,7 +213,10 @@ pub fn calc_pp(input: &ModelInputs, settings: &ModelSettings) -> Result<ModelOut
                 pp_day: Some(pp_day),
                 euphotic_depth: Some(max_euphotic_depth),
                 spectral_i_star: Some(spectral_i_star_mean),
-                par_noon_max: Some(iom)
+                par_noon_max: Some(iom),
+                pro_1_profile,
+                pro_2_profile,
+                pro_total_profile
             }
         )
     }

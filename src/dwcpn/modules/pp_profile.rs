@@ -11,6 +11,17 @@ pub struct PpProfile {
     pub success: bool,
 }
 
+pub struct ProchloroProfile {
+    pub pp_profile: [f64; DEPTH_PROFILE_COUNT],
+    pub par_profile: [f64; DEPTH_PROFILE_COUNT],
+    pub pro_1_profile: [f64; DEPTH_PROFILE_COUNT],
+    pub pro_2_profile: [f64; DEPTH_PROFILE_COUNT],
+    pub pro_output_profile: [f64; DEPTH_PROFILE_COUNT],
+    pub euphotic_depth: f64,
+    pub euph_index: usize,
+    pub spectral_i_star: f64,
+}
+
 pub fn calculate_bw() -> [f64; WL_COUNT] {
     // scattering coefficient of pure seawater at 500nm
     const BW500: f64 = 0.00288;
@@ -47,10 +58,10 @@ pub fn calculate_ay() -> [f64; WL_COUNT] {
 }
 
 pub fn compute_pp_depth_profile(
-    chl_profile: [f64; DEPTH_PROFILE_COUNT],
-    depth_profile: [f64; DEPTH_PROFILE_COUNT],
-    i_alpha_profile: [f64; DEPTH_PROFILE_COUNT],
-    par_profile: [f64; DEPTH_PROFILE_COUNT],
+    chl_profile: &[f64; DEPTH_PROFILE_COUNT],
+    depth_profile: &[f64; DEPTH_PROFILE_COUNT],
+    i_alpha_profile: &[f64; DEPTH_PROFILE_COUNT],
+    par_profile: &[f64; DEPTH_PROFILE_COUNT],
     model_inputs: &ModelInputs
 ) -> Result<PpProfile, PPErrors> {
     let mut pp_profile: [f64; DEPTH_PROFILE_COUNT] = [0.0; DEPTH_PROFILE_COUNT];
@@ -70,9 +81,10 @@ pub fn compute_pp_depth_profile(
                 euphotic_depth = model_inputs.z_bottom.abs();
             }
 
+
             return Ok(PpProfile {
                 pp_profile,
-                par_profile,
+                par_profile: par_profile.clone(),
                 euphotic_depth,
                 euph_index,
                 spectral_i_star: i_alpha_sum / model_inputs.pmb,
@@ -84,10 +96,71 @@ pub fn compute_pp_depth_profile(
     return Err(PPErrors::DWCPNError);
 }
 
+pub fn compute_prochloro_profile(
+    chl_profile: &[f64; DEPTH_PROFILE_COUNT],
+    depth_profile: &[f64; DEPTH_PROFILE_COUNT],
+    i_alpha_profile: &[f64; DEPTH_PROFILE_COUNT],
+    par_profile: &[f64; DEPTH_PROFILE_COUNT],
+    model_inputs: &ModelInputs,
+    pro_surf: &f64,
+    pro_max: &f64
+) -> Result<ProchloroProfile, PPErrors> {
+
+    let mut pp_profile: [f64; DEPTH_PROFILE_COUNT] = [0.0; DEPTH_PROFILE_COUNT];
+    let mut pro_1_profile: [f64; DEPTH_PROFILE_COUNT] = [0.0; DEPTH_PROFILE_COUNT];
+    let mut pro_2_profile: [f64; DEPTH_PROFILE_COUNT] = [0.0; DEPTH_PROFILE_COUNT];
+    let mut pro_output_profile: [f64; DEPTH_PROFILE_COUNT] = [0.0; DEPTH_PROFILE_COUNT];
+    let mut i_alpha_sum: f64 = 0.0;
+
+    for z in 0..DEPTH_PROFILE_COUNT {
+        let production_coefficient = model_inputs.pmb * (1.0 - (-i_alpha_profile[z] / model_inputs.pmb).exp());
+        pp_profile[z] = chl_profile[z] * production_coefficient;
+        i_alpha_sum = i_alpha_sum + i_alpha_profile[z];
+
+        let par_fraction = par_profile[z] / par_profile[0];
+
+        pro_1_profile[z] = pro_surf * ( 1.0 - ((-par_fraction - 0.01) / 0.025).exp() );
+
+        // clamp to zero
+        if pro_1_profile[z] < 0.0 { pro_1_profile[z] = 0.0; }
+
+        pro_2_profile[z] = pro_max * ( 1.0 -  (-par_fraction / 0.005 ).exp() ) * ( (-par_fraction / 0.1).exp() );
+
+        pro_output_profile[z] = production_coefficient * (pro_1_profile[z] + pro_2_profile[z]) / 10.0e6;
+
+        if z > 0 && par_fraction <= 0.01 {
+            let (mut euph_index,  mut euphotic_depth) = integrate_euphotic_depth(z, depth_profile, par_profile);
+
+            // clamp euphotic_depth to physical depth of ocean if it is lower
+            if euphotic_depth.abs() > model_inputs.z_bottom.abs() {
+                euph_index = DEPTH_PROFILE_COUNT - 1;
+                euphotic_depth = model_inputs.z_bottom.abs();
+            }
+
+            return Ok(
+                ProchloroProfile {
+                    pp_profile,
+                    par_profile: par_profile.clone(),
+                    pro_1_profile,
+                    pro_2_profile,
+                    pro_output_profile,
+                    euphotic_depth,
+                    euph_index,
+                    spectral_i_star: i_alpha_sum / model_inputs.pmb
+                }
+            )
+        }
+
+    }
+
+
+    return Err(PPErrors::DWCPNError);
+}
+
 fn integrate_euphotic_depth(
     depth_index: usize,
-    depth_profile: [f64; DEPTH_PROFILE_COUNT],
-    par_profile: [f64; DEPTH_PROFILE_COUNT]
+    depth_profile: &[f64; DEPTH_PROFILE_COUNT],
+    par_profile: &[f64; DEPTH_PROFILE_COUNT]
 ) -> (usize, f64) {
     let euph_index = depth_index - 1;
     let euphotic_depth = depth_profile[euph_index]
