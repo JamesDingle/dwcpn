@@ -33,15 +33,14 @@ pub fn calc_production(input: &ModelInputs, settings: &ModelSettings) -> Result<
     let mut pp: [f64; TIMESTEPS] = [0.0; TIMESTEPS];
     let mut euphotic_depth: [f64; TIMESTEPS] = [0.0; TIMESTEPS];
 
+    let mut pro_1_profile: Option<[f64; DEPTH_PROFILE_COUNT]> = None;
+    let mut pro_2_profile: Option<[f64; DEPTH_PROFILE_COUNT]> = None;
+    let mut pro_total_profile: Option<[f64; DEPTH_PROFILE_COUNT]> = None;
     if settings.prochloro_inputs.is_some() {
-        let mut pro_1_profile: Option<[f64; DEPTH_PROFILE_COUNT]> = Some([0.0; DEPTH_PROFILE_COUNT]);
-        let mut pro_2_profile: Option<[f64; DEPTH_PROFILE_COUNT]> = Some([0.0; DEPTH_PROFILE_COUNT]);
-        let mut pro_total_profile: Option<[f64; DEPTH_PROFILE_COUNT]> = Some([0.0; DEPTH_PROFILE_COUNT]);
-    } else {
-        let mut pro_1_profile: Option<[f64; DEPTH_PROFILE_COUNT]> = None;
-        let mut pro_2_profile: Option<[f64; DEPTH_PROFILE_COUNT]> = None;
-        let mut pro_total_profile: Option<[f64; DEPTH_PROFILE_COUNT]> = None;
-    }
+        pro_1_profile = Some([0.0; DEPTH_PROFILE_COUNT]);
+        pro_2_profile = Some([0.0; DEPTH_PROFILE_COUNT]);
+        pro_total_profile = Some([0.0; DEPTH_PROFILE_COUNT]);
+    };
     let mut pro_total_count: usize = 0;
 
     // spectral i star is calculated as a running mean
