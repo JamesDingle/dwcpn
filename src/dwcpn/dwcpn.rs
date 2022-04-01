@@ -1,4 +1,3 @@
-use std::borrow::Borrow;
 use crate::dwcpn::modules::chl_profile::{gen_chl_profile};
 use crate::dwcpn::modules::config::{DEPTH_PROFILE_STEP, TIMESTEPS};
 use crate::dwcpn::modules::irradiance::{compute_irradiance_components, correct_and_recompute_irradiance_components, lookup_thekaekara_correction};
@@ -163,14 +162,21 @@ pub fn calc_production(input: &ModelInputs, settings: &ModelSettings) -> Result<
 
                     if prochloro_profile.euph_index == 0 { prochloro_profile.euph_index = 1; }
 
-                    let mut pro_output_profile: [f64; DEPTH_PROFILE_COUNT] = [0.0; DEPTH_PROFILE_COUNT];
+                    let mut pro_output_profile: [f64; DEPTH_PROFILE_COUNT] = pro_total_profile.unwrap();
+                    let mut pro_1_output_profile: [f64; DEPTH_PROFILE_COUNT] = pro_1_profile.unwrap();
+                    let mut pro_2_output_profile: [f64; DEPTH_PROFILE_COUNT] = pro_2_profile.unwrap();
+
                     // TODO: double check if we need to cut off at euphotic depth for prochlorococcus
                     for z in 0..prochloro_profile.euph_index {
                         pro_output_profile[z] = pro_output_profile[z] + prochloro_profile.pro_1_profile[z] + prochloro_profile.pro_2_profile[z];
+                        pro_1_output_profile[z] = pro_1_output_profile[z] + prochloro_profile.pro_1_profile[z];
+                        pro_2_output_profile[z] = pro_2_output_profile[z] + prochloro_profile.pro_2_profile[z];
                     }
 
                     pro_total_count += 1;
                     pro_total_profile = Some(pro_output_profile);
+                    pro_1_profile = Some(pro_1_output_profile);
+                    pro_2_profile = Some(pro_2_output_profile);
                 },
                 Err(e) => println!("{:?}", e)
             }
@@ -198,15 +204,17 @@ pub fn calc_production(input: &ModelInputs, settings: &ModelSettings) -> Result<
     // mutliply by two because we have only integrated over half of the day
     pp_day = pp_day * 2.0;
 
-    // Prochlorococcus array integration
+    // Calculate mean (along time) prochlorococcus for every depth
     if pro_total_profile.is_some() {
         for z in 0..DEPTH_PROFILE_COUNT {
             pro_total_profile.unwrap()[z] /= pro_total_count as f64;
+            pro_1_profile.unwrap()[z] /= pro_total_count as f64;
+            pro_2_profile.unwrap()[z] /= pro_total_count as f64;
         }
     }
 
     if pp_day > 10000.0 {
-        Err(PPErrors::PPTooBig)
+        Err(PPErrors::PPTooHigh)
     } else {
         Ok(
             ModelOutputs {
