@@ -29,11 +29,11 @@ pub fn generate_time_array(sunrise: f64) -> ([f64; TIMESTEPS], f64) {
 
 
 pub fn compute_sunrise(jday: u16, lat: f64) -> (f64, f64, f64) {
+
     // convert julian day to double for the equation
     let dayfloat = jday as f64;
 
     let tau: f64 = std::f64::consts::PI * 2.00f64;
-
     let theta: f64 = tau * dayfloat / 365.0f64;
 
     let delta: f64 = 0.006918 - 0.399912 * theta.cos()

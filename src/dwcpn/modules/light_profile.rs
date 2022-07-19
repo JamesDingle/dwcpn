@@ -88,7 +88,6 @@ pub fn calc_i_z_decay(
         i_z[l] = i_z[l] * (-k[l] * DEPTH_PROFILE_STEP).exp();
     }
 
-// note to self: implement the correct passing of par_profile
     (i_alpha, i_z, par)
 }
 
