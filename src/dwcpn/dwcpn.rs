@@ -182,7 +182,7 @@ pub fn calc_production(input: &ModelInputs, settings: &ModelSettings) -> Result<
                     pro_1_profile = Some(pro_1_output_profile);
                     pro_2_profile = Some(pro_2_output_profile);
                 },
-                Err(e) => println!("{:?}", e)
+                Err(_) => ()
             }
         }
 
