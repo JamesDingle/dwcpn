@@ -41,6 +41,7 @@ pub struct ModelOutputs {
     pub pro_1_profile: Option<[f64; DEPTH_PROFILE_COUNT]>,
     pub pro_2_profile: Option<[f64; DEPTH_PROFILE_COUNT]>,
     pub pro_total_profile: Option<[f64; DEPTH_PROFILE_COUNT]>,
+    pub pp_prochloro_profile: Option<[f64; DEPTH_PROFILE_COUNT]>
 }
 
 #[derive(Debug)]
@@ -134,7 +135,8 @@ mod integration_tests {
             par_noon_max: None,
             pro_1_profile: None,
             pro_2_profile: None,
-            pro_total_profile: None
+            pro_total_profile: None,
+            pp_prochloro_profile: None
         };
 
         let test_case = TestCase {
@@ -183,7 +185,8 @@ mod integration_tests {
             par_noon_max: None,
             pro_1_profile: None,
             pro_2_profile: None,
-            pro_total_profile: None
+            pro_total_profile: None,
+            pp_prochloro_profile: None
         };
 
         let test_case = TestCase {
@@ -231,7 +234,8 @@ mod integration_tests {
             par_noon_max: None,
             pro_1_profile: None,
             pro_2_profile: None,
-            pro_total_profile: None
+            pro_total_profile: None,
+            pp_prochloro_profile: None
         };
 
         let test_case = TestCase {
@@ -279,7 +283,8 @@ mod integration_tests {
             par_noon_max: None,
             pro_1_profile: None,
             pro_2_profile: None,
-            pro_total_profile: None
+            pro_total_profile: None,
+            pp_prochloro_profile: None
         };
 
         let test_case = TestCase {
@@ -327,7 +332,8 @@ mod integration_tests {
             par_noon_max: None,
             pro_1_profile: None,
             pro_2_profile: None,
-            pro_total_profile: None
+            pro_total_profile: None,
+            pp_prochloro_profile: None
         };
 
         let test_case = TestCase {

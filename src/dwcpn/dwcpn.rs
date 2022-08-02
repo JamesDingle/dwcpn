@@ -36,10 +36,12 @@ pub fn calc_production(input: &ModelInputs, settings: &ModelSettings) -> Result<
     let mut pro_1_profile: Option<[f64; DEPTH_PROFILE_COUNT]> = None;
     let mut pro_2_profile: Option<[f64; DEPTH_PROFILE_COUNT]> = None;
     let mut pro_total_profile: Option<[f64; DEPTH_PROFILE_COUNT]> = None;
+    let mut pp_prochloro_profile: Option<[f64; DEPTH_PROFILE_COUNT]> = None;
     if settings.prochloro_inputs.is_some() {
         pro_1_profile = Some([0.0; DEPTH_PROFILE_COUNT]);
         pro_2_profile = Some([0.0; DEPTH_PROFILE_COUNT]);
         pro_total_profile = Some([0.0; DEPTH_PROFILE_COUNT]);
+        pp_prochloro_profile = Some([0.0; DEPTH_PROFILE_COUNT]);
     };
     let mut pro_total_count: usize = 0;
 
@@ -84,7 +86,8 @@ pub fn calc_production(input: &ModelInputs, settings: &ModelSettings) -> Result<
                         par_noon_max: Some(iom),
                         pro_1_profile: None,
                         pro_2_profile: None,
-                        pro_total_profile: None
+                        pro_total_profile: None,
+                        pp_prochloro_profile: None
                     }
                 )
             }
@@ -228,7 +231,8 @@ pub fn calc_production(input: &ModelInputs, settings: &ModelSettings) -> Result<
                 par_noon_max: Some(iom),
                 pro_1_profile,
                 pro_2_profile,
-                pro_total_profile
+                pro_total_profile,
+                pp_prochloro_profile
             }
         )
     }
