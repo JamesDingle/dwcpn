@@ -142,7 +142,7 @@ pub fn calc_production(input: &ModelInputs, settings: &ModelSettings) -> Result<
                 spectral_i_star_sum = spectral_i_star_sum + (pp_profile.spectral_i_star / (pp_profile.euph_index as f64).abs());
                 spectral_i_star_count = spectral_i_star_count + 1.0;
             },
-            Err(e) => println!("{:?}", e)
+            Err(_) => {}
         }
 
 
