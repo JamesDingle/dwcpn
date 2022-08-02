@@ -122,7 +122,7 @@ pub fn compute_prochloro_profile(
         let par_fraction = par_profile[z] / par_profile[0];
 
         pro_1_profile[z] = pro_surf * ( 1.0 - ((-par_fraction - 0.01) / 0.025).exp() );
-        
+
         // clamp to zero
         if pro_1_profile[z] < 0.0 { pro_1_profile[z] = 0.0; }
 
@@ -132,7 +132,7 @@ pub fn compute_prochloro_profile(
         
         pp_prochloro_profile[z] = production_coefficient * (pro_1_profile[z] + pro_2_profile[z]) / 10.0e6;
 
-        if z > 0 && par_fraction <= 0.01 {
+        if z > 0 && par_fraction <= 0.001 {
             let (mut euph_index,  mut euphotic_depth) = integrate_euphotic_depth(z, depth_profile, par_profile);
 
             // clamp euphotic_depth to physical depth of ocean if it is lower
