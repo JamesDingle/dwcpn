@@ -27,7 +27,7 @@ pub fn calculate_bw() -> [f64; WL_COUNT] {
     const BW500: f64 = 0.00288;
 
     let mut bw: [f64; WL_COUNT] = [0.0; WL_COUNT];
-
+    //bw for water
     for i in 0..WL_COUNT {
         bw[i] = BW500 * (WL_ARRAY[i] / 500.0).powf(-4.3);
     }
