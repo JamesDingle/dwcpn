@@ -16,7 +16,8 @@ pub struct ProchloroProfile {
     pub par_profile: [f64; DEPTH_PROFILE_COUNT],
     pub pro_1_profile: [f64; DEPTH_PROFILE_COUNT],
     pub pro_2_profile: [f64; DEPTH_PROFILE_COUNT],
-    pub pro_output_profile: [f64; DEPTH_PROFILE_COUNT],
+    pub pro_sum_profile: [f64; DEPTH_PROFILE_COUNT],
+    pub pp_prochloro_profile: [f64; DEPTH_PROFILE_COUNT],
     pub euphotic_depth: f64,
     pub euph_index: usize,
     pub spectral_i_star: f64,
@@ -109,7 +110,8 @@ pub fn compute_prochloro_profile(
     let mut pp_profile: [f64; DEPTH_PROFILE_COUNT] = [0.0; DEPTH_PROFILE_COUNT];
     let mut pro_1_profile: [f64; DEPTH_PROFILE_COUNT] = [0.0; DEPTH_PROFILE_COUNT];
     let mut pro_2_profile: [f64; DEPTH_PROFILE_COUNT] = [0.0; DEPTH_PROFILE_COUNT];
-    let mut pro_output_profile: [f64; DEPTH_PROFILE_COUNT] = [0.0; DEPTH_PROFILE_COUNT];
+    let mut pro_sum_profile: [f64; DEPTH_PROFILE_COUNT] = [0.0; DEPTH_PROFILE_COUNT];
+    let mut pp_prochloro_profile: [f64; DEPTH_PROFILE_COUNT] = [0.0; DEPTH_PROFILE_COUNT];
     let mut i_alpha_sum: f64 = 0.0;
 
     for z in 0..DEPTH_PROFILE_COUNT {
@@ -126,9 +128,11 @@ pub fn compute_prochloro_profile(
 
         pro_2_profile[z] = pro_max * ( 1.0 -  (-par_fraction / 0.005 ).exp() ) * ( (-par_fraction / 0.1).exp() );
 
-        pro_output_profile[z] = production_coefficient * (pro_1_profile[z] + pro_2_profile[z]) / 10.0e6;
+        pro_sum_profile[z] = pro_1_profile[z] + pro_2_profile[z];
+        
+        pp_prochloro_profile[z] = production_coefficient * (pro_1_profile[z] + pro_2_profile[z]) / 10.0e6;
 
-        if z > 0 && par_fraction <= 0.01 {
+        if z > 0 && par_fraction <= 0.001 {
             let (mut euph_index,  mut euphotic_depth) = integrate_euphotic_depth(z, depth_profile, par_profile);
 
             // clamp euphotic_depth to physical depth of ocean if it is lower
@@ -143,7 +147,8 @@ pub fn compute_prochloro_profile(
                     par_profile: par_profile.clone(),
                     pro_1_profile,
                     pro_2_profile,
-                    pro_output_profile,
+                    pro_sum_profile,
+                    pp_prochloro_profile,
                     euphotic_depth,
                     euph_index,
                     spectral_i_star: i_alpha_sum / model_inputs.pmb

@@ -121,7 +121,7 @@ pub fn calc_light_decay_profile(
         i_z = i_z_temp;
         par_profile[z] = par_z;
 
-        if par_profile[z] < (0.01 * par_profile[0]) {
+        if par_profile[z] < (0.001 * par_profile[0]) {
             break;
         }
 

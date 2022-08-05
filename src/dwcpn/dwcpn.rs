@@ -36,10 +36,12 @@ pub fn calc_production(input: &ModelInputs, settings: &ModelSettings) -> Result<
     let mut pro_1_profile: Option<[f64; DEPTH_PROFILE_COUNT]> = None;
     let mut pro_2_profile: Option<[f64; DEPTH_PROFILE_COUNT]> = None;
     let mut pro_total_profile: Option<[f64; DEPTH_PROFILE_COUNT]> = None;
+    let mut pp_prochloro_profile: Option<[f64; DEPTH_PROFILE_COUNT]> = None;
     if settings.prochloro_inputs.is_some() {
         pro_1_profile = Some([0.0; DEPTH_PROFILE_COUNT]);
         pro_2_profile = Some([0.0; DEPTH_PROFILE_COUNT]);
         pro_total_profile = Some([0.0; DEPTH_PROFILE_COUNT]);
+        pp_prochloro_profile = Some([0.0; DEPTH_PROFILE_COUNT]);
     };
     let mut pro_total_count: usize = 0;
 
@@ -84,7 +86,8 @@ pub fn calc_production(input: &ModelInputs, settings: &ModelSettings) -> Result<
                         par_noon_max: Some(iom),
                         pro_1_profile: None,
                         pro_2_profile: None,
-                        pro_total_profile: None
+                        pro_total_profile: None,
+                        pp_prochloro_profile: None
                     }
                 )
             }
@@ -166,19 +169,22 @@ pub fn calc_production(input: &ModelInputs, settings: &ModelSettings) -> Result<
 
                     if prochloro_profile.euph_index == 0 { prochloro_profile.euph_index = 1; }
 
-                    let mut pro_output_profile: [f64; DEPTH_PROFILE_COUNT] = pro_total_profile.unwrap();
+                    let mut pp_prochloro_output_profile: [f64; DEPTH_PROFILE_COUNT] = pp_prochloro_profile.unwrap();
+                    let mut pro_total_output_profile: [f64; DEPTH_PROFILE_COUNT] = pro_total_profile.unwrap();
                     let mut pro_1_output_profile: [f64; DEPTH_PROFILE_COUNT] = pro_1_profile.unwrap();
                     let mut pro_2_output_profile: [f64; DEPTH_PROFILE_COUNT] = pro_2_profile.unwrap();
 
                     // TODO: double check if we need to cut off at euphotic depth for prochlorococcus
                     for z in 0..prochloro_profile.euph_index {
-                        pro_output_profile[z] = pro_output_profile[z] + prochloro_profile.pro_1_profile[z] + prochloro_profile.pro_2_profile[z];
+                        pp_prochloro_output_profile[z] = pp_prochloro_output_profile[z] + prochloro_profile.pp_prochloro_profile[z];
+                        pro_total_output_profile[z] = pro_total_output_profile[z] + prochloro_profile.pro_sum_profile[z];
                         pro_1_output_profile[z] = pro_1_output_profile[z] + prochloro_profile.pro_1_profile[z];
                         pro_2_output_profile[z] = pro_2_output_profile[z] + prochloro_profile.pro_2_profile[z];
                     }
 
                     pro_total_count += 1;
-                    pro_total_profile = Some(pro_output_profile);
+                    pp_prochloro_profile = Some(pp_prochloro_output_profile);
+                    pro_total_profile = Some(pro_total_output_profile);
                     pro_1_profile = Some(pro_1_output_profile);
                     pro_2_profile = Some(pro_2_output_profile);
                 },
@@ -211,6 +217,7 @@ pub fn calc_production(input: &ModelInputs, settings: &ModelSettings) -> Result<
     // Calculate mean (along time) prochlorococcus for every depth
     if pro_total_profile.is_some() {
         for z in 0..DEPTH_PROFILE_COUNT {
+            pp_prochloro_profile.unwrap()[z] /= pro_total_count as f64;
             pro_total_profile.unwrap()[z] /= pro_total_count as f64;
             pro_1_profile.unwrap()[z] /= pro_total_count as f64;
             pro_2_profile.unwrap()[z] /= pro_total_count as f64;
@@ -228,7 +235,8 @@ pub fn calc_production(input: &ModelInputs, settings: &ModelSettings) -> Result<
                 par_noon_max: Some(iom),
                 pro_1_profile,
                 pro_2_profile,
-                pro_total_profile
+                pro_total_profile,
+                pp_prochloro_profile
             }
         )
     }
