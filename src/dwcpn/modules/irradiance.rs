@@ -384,8 +384,8 @@ pub fn correct_and_recompute_irradiance_components(
     // let dif_div = &diffuse_integrated;
 
     for l in 0..WL_COUNT {
-        direct_corrected[l] = direct_corrected[l] + dir_div;
-        diffuse_corrected[l] = diffuse_corrected[l] + dif_div;
+        direct_corrected[l] = direct_corrected[l] * dir_div;
+        diffuse_corrected[l] = diffuse_corrected[l] * dif_div;
     }
 
     // calculate reflection and convert watts/micron into einsteins/hr/nm
